@@ -169,7 +169,7 @@ void queue_flush_locked() {   // (dev.present_mu held)
     const VkResult res = vkQueueSubmit2(dev.queue, 1, &si, VK_NULL_HANDLE);
     static int failures;
     if (res != VK_SUCCESS && failures++ < 8) logf("vk: batched submit %llu failed (%d)", (unsigned long long)batch_next, (int)res);
-    if (res == VK_ERROR_DEVICE_LOST) checkpoints_report();
+    if (res == VK_ERROR_DEVICE_LOST) device_lost_stop();
     batch_flushed = batch_next;
     st_flushes++, st_batched_cbs += (int64_t)pend.cbs.size();
     st_reason[flush_reason]++;
@@ -338,7 +338,7 @@ void submit_recording(Recording& r, bool signal_value = true, uint64_t signal_at
     r.submitted = res == VK_SUCCESS;
     static int failures;
     if (res != VK_SUCCESS && failures++ < 8) logf("vk: submit %llu failed (%d)", (unsigned long long)r.value, (int)res);
-    if (res == VK_ERROR_DEVICE_LOST) checkpoints_report();
+    if (res == VK_ERROR_DEVICE_LOST) device_lost_stop();
 }
 
 // ---- NVN state (the draw path's, vk_state.h) ----
@@ -1298,7 +1298,7 @@ void submit_segment_recording(Recording& r) {
     const VkResult res = vkQueueSubmit2(dev.queue, 1, &si, r.fence);
     r.submitted = res == VK_SUCCESS;
     if (res != VK_SUCCESS) logf("vk: segment submit %llu failed (%d)", (unsigned long long)r.value, (int)res);
-    if (res == VK_ERROR_DEVICE_LOST) checkpoints_report();
+    if (res == VK_ERROR_DEVICE_LOST) device_lost_stop();
 }
 
 struct Segment {
@@ -1453,7 +1453,7 @@ const uint8_t* replay_handle(VkCommandBuffer& cmd, const uint8_t* h, bool may_st
         const VkResult res = vkQueueSubmit2(dev.queue, 1, &si, j->r->fence);
         j->r->submitted = res == VK_SUCCESS;
         if (res != VK_SUCCESS) logf("vk: segment submit %llu failed (%d)", (unsigned long long)j->r->value, (int)res);
-        if (res == VK_ERROR_DEVICE_LOST) checkpoints_report();
+        if (res == VK_ERROR_DEVICE_LOST) device_lost_stop();
     }
     {
         std::unique_lock lk(par_pool.mu);
@@ -2032,7 +2032,7 @@ int wait(uint64_t f, uint64_t timeout_ns) {
     if (res != VK_SUCCESS && timeout_ns > 1000000000ull && logged++ < 8)
         logf("vk: wait for fence %llu (done %llu, pushed %llu): %d", (unsigned long long)f,
              (unsigned long long)completed(), (unsigned long long)pushed.load(), (int)res);
-    if (res == VK_ERROR_DEVICE_LOST) checkpoints_report();
+    if (res == VK_ERROR_DEVICE_LOST) device_lost_stop();
     return res == VK_SUCCESS;
 }
 void wait_queue_empty();
