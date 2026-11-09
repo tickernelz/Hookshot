@@ -3066,7 +3066,7 @@ void present_image(VkImage src, uint32_t sw, uint32_t sh, const int crop[4], VkI
         st_flushes0 = st_flushes, st_cbs0 = st_batched_cbs;
         std::memcpy(r0, st_reason, sizeof r0);
     }
-    vkQueueSubmit2(dev.queue, 1, &si, f.done);
+    if (vkQueueSubmit2(dev.queue, 1, &si, f.done) == VK_ERROR_DEVICE_LOST) device_lost_stop();
     VkPresentInfoKHR pi{VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
     pi.waitSemaphoreCount = 1;
     pi.pWaitSemaphores = &dev.swap_rendered[index];
@@ -3074,6 +3074,7 @@ void present_image(VkImage src, uint32_t sw, uint32_t sh, const int crop[4], VkI
     pi.pSwapchains = &dev.swapchain;
     pi.pImageIndices = &index;
     res = vkQueuePresentKHR(dev.queue, &pi);
+    if (res == VK_ERROR_DEVICE_LOST) device_lost_stop();
     if (res == VK_ERROR_OUT_OF_DATE_KHR || res == VK_SUBOPTIMAL_KHR)
         create_swapchain(dev.swap_extent.width, dev.swap_extent.height);
 }

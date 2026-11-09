@@ -2879,17 +2879,20 @@ void checkpoints_report() {
     }
 }
 
-// (a driver reset under a submit leaves every later one answering VK_ERROR_DEVICE_LOST with the window black and the process alive:
-// the report above names what was running, then the session ends rather than looping)
 void device_lost_stop() {
-    checkpoints_report();
-    static std::atomic<bool> ready;
-    if (ready.exchange(true)) {
-        for (;;) std::this_thread::sleep_for(std::chrono::seconds(1));   // (the first caller below ends the process)
+    static std::atomic<bool> stopping;
+    if (stopping.exchange(true)) {
+        for (;;) std::this_thread::sleep_for(std::chrono::seconds(1));
     }
+    std::thread([] {
+        std::this_thread::sleep_for(std::chrono::seconds(8));
+        std::_Exit(1);
+    }).detach();
+    checkpoints_report();
     logf("vk: the device is lost (the GPU was reset): nothing can be drawn again in this session, so Hookshot stops. "
          "Restart it; RX_VK_FRAMEGEN=0 rules the frame generation out next time");
-    std::exit(1);
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    std::_Exit(1);
 }
 
 
